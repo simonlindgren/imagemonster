@@ -24,10 +24,10 @@ from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 import cv2 # installed with `pip install opencv-contrib-python`
-
-def main():
-    print("python main function")
     
+'''
+RESNET50
+'''
     
 def img2vec_resnet50(imagedir):
     
@@ -54,11 +54,14 @@ def img2vec_resnet50(imagedir):
     embeddings = np.stack(list(image_vectors.values()))
     with open('res50.pkl','wb') as f:
         pickle.dump(embeddings, f)
+        
+'''
+XCEPTION
+'''
     
 def img2vec_xception(imagedir):
     
     image_paths = glob.glob(str(imagedir) + '/*.jpg')
-    image_paths = image_paths[:400]
     
     _IMAGE_NET_TARGET_SIZE = (299, 299)
     model = xception.Xception(weights='imagenet')
@@ -82,36 +85,77 @@ def img2vec_xception(imagedir):
     with open('xception.pkl','wb') as f:
         pickle.dump(embeddings, f)
 
+'''
+PCA TEST
+'''     
+        
+def pca_test(embedding_file):
+    with open(embedding_file, 'rb') as pkl:
+        embeddings = pickle.load(pkl)
+    pca = PCA().fit(embeddings)
+    plt.plot(np.cumsum(pca.explained_variance_ratio_))
+    plt.xlabel('number of components')
+    plt.ylabel('cumulative explained variance');        
 
+
+'''
+RUN PCA
+'''
+
+def run_pca(embeddings_file, n_comp):
+    with open(embeddings_file, 'rb') as pkl:
+        embeddings = pickle.load(pkl)
+    pca = PCA(n_components=n_comp)
+    pca_result = pca.fit_transform(embeddings)
+    print('Cumulative explained variation for 50 principal components:{}'.format(np.sum(pca.explained_variance_ratio_)))
+    print(np.shape(pca_result))
+    
+    pca_result_scaled = StandardScaler().fit_transform(pca_result)
+    plt.scatter(pca_result_scaled[:,0], pca_result_scaled[:,1], s=1)
+    
+    outfilename = str(embeddings_file.split(".")[0] + "_pca.pkl")
+    with open(outfilename, 'wb') as pkl:
+        pickle.dump(pca_result, pkl)
+        
+'''
+RUN TSNE
+'''
+            
 def run_tsne(embeddings_file, n_iter, perplexity):
     with open(embeddings_file, 'rb') as pkl:
         embeddings = pickle.load(pkl)
     tsne = TSNE(n_components=2, n_iter=n_iter, perplexity=perplexity, verbose = 1)
     tsne_result = tsne.fit_transform(embeddings)
     tsne_result_scaled = StandardScaler().fit_transform(tsne_result)
-    plt.scatter(tsne_result_scaled[:,0], tsne_result_scaled[:,1])
+    plt.scatter(tsne_result_scaled[:,0], tsne_result_scaled[:,1], s=1)
     
     outfilename = str(embeddings_file.split(".")[0] + "_tsne.pkl")
     with open(outfilename, 'wb') as pkl:
-        tsne_result_scaled = pickle.dump(tsne_result, pkl)
-    
-
+        pickle.dump(tsne_result_scaled, pkl)
+        
+'''
+RUN UMAP
+'''
+            
 def run_umap(embeddings_file,n_neighbours,min_dist,metric):
     with open(embeddings_file, 'rb') as pkl:
         embeddings = pickle.load(pkl)
     umap_r = umap.UMAP(n_neighbors=n_neighbours,min_dist=min_dist,metric=metric,n_components=2)
     umap_result = umap_r.fit_transform(embeddings)
     umap_result_scaled = StandardScaler().fit_transform(umap_result)
-    plt.scatter(umap_result_scaled[:,0], umap_result_scaled[:,1])
+    plt.scatter(umap_result_scaled[:,0], umap_result_scaled[:,1], s=1)
 
     outfilename = str(embeddings_file.split(".")[0] + "_umap.pkl")
     with open(outfilename, 'wb') as pkl:
-        umap_result_scaled = pickle.dump(umap_result_scaled, pkl)
+        pickle.dump(umap_result_scaled, pkl)
     
+'''
+CREATE IMAGE MAP
+'''
+
 def image_map(imagedir, final_data_file):
     
     image_paths = glob.glob(str(imagedir) + '/*.jpg')
-    image_paths = image_paths[:400]
 
     with open(final_data_file, 'rb') as pkl:
         final_result_scaled = pickle.load(pkl)
@@ -136,6 +180,3 @@ def image_map(imagedir, final_data_file):
     ax.autoscale(enable=True, axis='both', tight=True)
     plt.savefig("imagemonster_plot.pdf")
     plt.show()
-    
-if __name__ == '__main__':
-    main()
